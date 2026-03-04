@@ -8,61 +8,84 @@ class Drawer(object):
         self.path_planner=path_planner
         self.parameters=path_planner.parameters
 
-    def get_map_drawing(self,robots,tasks,legend=False,labels=False):
-        fig=plt.figure(figsize=(7,7))        
-        #fig=plt.figure(figsize=(7,6))         
-        ax=fig.gca()
+    def rotate_point(self,p):
+        # 90 deg counterclockwise rotation in display space.
+        return (p[1],self.parameters.size[0]-1-p[0])
 
-        ax.set_xlim([0-0.5,self.parameters.size[0]-1])
-        ax.set_ylim([0-0.5,self.parameters.size[1]-1])
+    def setup_axes(self,ax):
+        width_r=self.parameters.size[1]
+        height_r=self.parameters.size[0]
+        ax.set_xlim([-0.5,width_r-0.5])
+        ax.set_ylim([-0.5,height_r-0.5])
+        ax.set_aspect('equal')
 
-        xticks=np.arange(0,self.parameters.size[0])
-        yticks=np.arange(0,self.parameters.size[1])
-        xgrid=np.arange(-0.5,self.parameters.size[0]+0.5)
-        ygrid=np.arange(-0.5,self.parameters.size[1]+0.5)
+        xticks=np.arange(0,width_r)
+        yticks=np.arange(0,height_r)
+        xgrid=np.arange(-0.5,width_r+0.5)
+        ygrid=np.arange(-0.5,height_r+0.5)
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
         ax.set_xticks(xgrid,minor=True)
         ax.set_yticks(ygrid,minor=True)
         ax.tick_params(axis='both', which='major', labelsize=10)
+
+    def draw_obstacles(self,ax):
+        # Draw obstacle occupancy as exact grid cells.
+        for i,(x,y) in enumerate(self.parameters.obsticles):
+            xr,yr=self.rotate_point((x,y))
+            label="Obstacles" if i==0 else None
+            rect=patches.Rectangle((xr-0.5,yr-0.5),1,1,facecolor='k',edgecolor='k',label=label,zorder=2.5)
+            ax.add_patch(rect)
+
+    def draw_goals(self,ax):
+        goals=self.parameters.goal if isinstance(self.parameters.goal,list) else [self.parameters.goal]
+        for i,g in enumerate(goals):
+            xg,yg=self.rotate_point(g)
+            label="Goal" if i==0 else None
+            rect=patches.Rectangle((xg-0.5,yg-0.5),1,1,facecolor='g',edgecolor='k',label=label,zorder=2.6)
+            ax.add_patch(rect)
+
+    def get_map_drawing(self,robots,tasks,legend=False,labels=False):
+        fig=plt.figure(figsize=(12,6))
+        #fig=plt.figure(figsize=(7,6))         
+        ax=fig.gca()
+
+        self.setup_axes(ax)
         
         self.draw_hazard_heat_map(fig,ax,self.parameters.N-1)
-
-        x_obsticles=[e[0] for e in self.parameters.obsticles]
-        y_obsticles=[e[1] for e in self.parameters.obsticles]
-        plt.scatter(x_obsticles,y_obsticles,color='k',marker="s",s=300,label="Obstacles")
+        self.draw_obstacles(ax)
 
         x_hazards=[]
         y_hazards=[]
         for hazard in self.parameters.hazards:
-            x_hazards=x_hazards+[e[0] for e in hazard.y_0]
-            y_hazards=y_hazards+[e[1] for e in hazard.y_0]
+            hazard_cells=[self.rotate_point(e) for e in hazard.y_0]
+            x_hazards=x_hazards+[e[0] for e in hazard_cells]
+            y_hazards=y_hazards+[e[1] for e in hazard_cells]
             if labels:
-                for y_0_h in hazard.y_0:
+                for y_0_h in hazard_cells:
                     plt.text(y_0_h[0],y_0_h[1],str(hazard.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
         plt.scatter(x_hazards,y_hazards,color='r',marker="o",s=200,label="Hazards")
 
         x_robots=[]
         y_robots=[]
         for robot in self.parameters.robots:
-            x_robots=x_robots+[robot.x_0[0]]
-            y_robots=y_robots+[robot.x_0[1]]
+            xr,yr=self.rotate_point(robot.x_0)
+            x_robots=x_robots+[xr]
+            y_robots=y_robots+[yr]
             if labels:
-                plt.text(robot.x_0[0],robot.x_0[1],str(robot.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
+                plt.text(xr,yr,str(robot.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
         plt.scatter(x_robots,y_robots,color='b',marker="o",s=200,label="Robots") 
 
         x_tasks=[]
         y_tasks=[]
         for task in tasks:
-            x_tasks=x_tasks+[task.target[0]]
-            y_tasks=y_tasks+[task.target[1]]
+            xt,yt=self.rotate_point(task.target)
+            x_tasks=x_tasks+[xt]
+            y_tasks=y_tasks+[yt]
             if labels:
-                plt.text(task.target[0],task.target[1],str(task.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
+                plt.text(xt,yt,str(task.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
         plt.scatter(x_tasks,y_tasks,color='g',marker="o",s=200,label="Targets")                    
-
-        x_goal=self.parameters.goal[0]
-        y_goal=self.parameters.goal[1]
-        plt.scatter(x_goal,y_goal,color='g',marker=">",s=250,label="Goal")
+        self.draw_goals(ax)
        
         plt.grid(which='minor',linestyle=":",color='k',lw=0.5)#,marker="D")
         if legend:
@@ -74,10 +97,11 @@ class Drawer(object):
         probabilities_T=np.mean(samples_k,axis=0)
         hazard_heat_map=np.zeros((self.parameters.size[1],self.parameters.size[0]))
         for i,x in enumerate(self.path_planner.X):
-            hazard_heat_map[x[1],x[0]]=probabilities_T[i]    
-        X,Y=np.meshgrid(np.arange(self.parameters.size[0]+1),np.arange(self.parameters.size[1]+1))
+            hazard_heat_map[x[1],x[0]]=probabilities_T[i]
+        hazard_heat_map=np.rot90(hazard_heat_map,1)
+        X,Y=np.meshgrid(np.arange(hazard_heat_map.shape[1]+1),np.arange(hazard_heat_map.shape[0]+1))
         heat_map=ax.pcolor(X-0.5,Y-0.5,hazard_heat_map, cmap='Reds',vmin=0.0,vmax=1.0)
-        cbar=fig.colorbar(heat_map,ax=ax,orientation='horizontal',pad=0.07)
+        cbar=fig.colorbar(heat_map,ax=ax,orientation='horizontal',pad=0.06,shrink=0.62,fraction=0.03,aspect=40)
         cbar.ax.tick_params(labelsize=10)
         cbar.set_label(label="Probability of cell contamination at time step k="+str(k+1),size=12)
 
@@ -93,10 +117,12 @@ class Drawer(object):
             x_t_1=path.domain[1][np.where(path.matrix[t-1,:])[0][0]]
             x_t=path.domain[1][np.where(path.matrix[t,:])[0][0]]
             if x_t!=x_t_1:
-                d_t=np.array(x_t)-np.array(x_t_1)
+                x_t_1=np.array(self.rotate_point(x_t_1))
+                x_t=np.array(self.rotate_point(x_t))
+                d_t=x_t-x_t_1
                 d_t_side=np.array([[0,1],[-1,0]]).dot(d_t)
                 d_t=tuple(0.7*d_t)
-                x_t_1_side=tuple(0.1*d_t_side+np.array(x_t_1))
+                x_t_1_side=tuple(0.1*d_t_side+x_t_1)
                 plt.arrow(x_t_1_side[0],x_t_1_side[1],d_t[0],d_t[1],head_width=0.05, head_length=0.1, fc='k', ec='k')
         plt.show()
 
@@ -151,8 +177,9 @@ class Drawer(object):
             x_sh_last=x_list[-1]+shift*e_last
             x_sh_list=x_sh_list+[x_sh_last]
 
-            x_sh_list_x=[e[0] for e in x_sh_list]
-            x_sh_list_y=[e[1] for e in x_sh_list]
+            x_sh_list_rot=[self.rotate_point((e[0],e[1])) for e in x_sh_list]
+            x_sh_list_x=[e[0] for e in x_sh_list_rot]
+            x_sh_list_y=[e[1] for e in x_sh_list_rot]
 
             plt.plot(x_sh_list_x,x_sh_list_y,zorder=2,color='b',linestyle=robot.linestyle,linewidth=2)
         plt.show()
@@ -211,66 +238,53 @@ class Drawer(object):
                     x_sh_last=x_list[-1]+shift*e_last
                     x_sh_list=x_sh_list+[x_sh_last]
 
-                x_sh_list_x=[e[0] for e in x_sh_list]
-                x_sh_list_y=[e[1] for e in x_sh_list]
+                x_sh_list_rot=[self.rotate_point((e[0],e[1])) for e in x_sh_list]
+                x_sh_list_x=[e[0] for e in x_sh_list_rot]
+                x_sh_list_y=[e[1] for e in x_sh_list_rot]
 
                 plt.plot(x_sh_list_x,x_sh_list_y,zorder=2,color='b',linestyle=self.parameters.robot_linestyles[len(robots)-1-i],linewidth=2)
         plt.show()
 
     def get_map_drawing_step_by_step(self,robots,tasks,k,legend=False,labels=False):
-        fig=plt.figure(figsize=(7,7))            
+        fig=plt.figure(figsize=(12,6))
         ax=fig.gca()
 
-        ax.set_xlim([0-0.5,self.parameters.size[0]-1])
-        ax.set_ylim([0-0.5,self.parameters.size[1]-1])
-
-        xticks=np.arange(0,self.parameters.size[0])
-        yticks=np.arange(0,self.parameters.size[1])
-        xgrid=np.arange(-0.5,self.parameters.size[0]+0.5)
-        ygrid=np.arange(-0.5,self.parameters.size[1]+0.5)
-        ax.set_xticks(xticks)
-        ax.set_yticks(yticks)
-        ax.set_xticks(xgrid,minor=True)
-        ax.set_yticks(ygrid,minor=True)
-        ax.tick_params(axis='both', which='major', labelsize=10)
+        self.setup_axes(ax)
         
         self.draw_hazard_heat_map(fig,ax,k)
-
-        x_obsticles=[e[0] for e in self.parameters.obsticles]
-        y_obsticles=[e[1] for e in self.parameters.obsticles]
-        plt.scatter(x_obsticles,y_obsticles,color='k',marker="s",s=300,label="Obstacles")
+        self.draw_obstacles(ax)
 
         x_hazards=[]
         y_hazards=[]
         for hazard in self.parameters.hazards:
-            x_hazards=x_hazards+[e[0] for e in hazard.y_0]
-            y_hazards=y_hazards+[e[1] for e in hazard.y_0]
+            hazard_cells=[self.rotate_point(e) for e in hazard.y_0]
+            x_hazards=x_hazards+[e[0] for e in hazard_cells]
+            y_hazards=y_hazards+[e[1] for e in hazard_cells]
             if labels:
-                for y_0_h in hazard.y_0:
+                for y_0_h in hazard_cells:
                     plt.text(y_0_h[0],y_0_h[1],str(hazard.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
         plt.scatter(x_hazards,y_hazards,color='r',marker="o",s=200,label="Hazards")
 
         x_robots=[]
         y_robots=[]
         for robot in self.parameters.robots:
-            x_robots=x_robots+[robot.x_0[0]]
-            y_robots=y_robots+[robot.x_0[1]]
+            xr,yr=self.rotate_point(robot.x_0)
+            x_robots=x_robots+[xr]
+            y_robots=y_robots+[yr]
             if labels:
-                plt.text(robot.x_0[0],robot.x_0[1],str(robot.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
+                plt.text(xr,yr,str(robot.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
         plt.scatter(x_robots,y_robots,color='b',marker="o",s=200,label="Robots") 
 
         x_tasks=[]
         y_tasks=[]
         for task in tasks:
-            x_tasks=x_tasks+[task.target[0]]
-            y_tasks=y_tasks+[task.target[1]]
+            xt,yt=self.rotate_point(task.target)
+            x_tasks=x_tasks+[xt]
+            y_tasks=y_tasks+[yt]
             if labels:
-                plt.text(task.target[0],task.target[1],str(task.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
+                plt.text(xt,yt,str(task.id),color='w',fontsize=9,fontweight='bold',horizontalalignment='center',verticalalignment='center')
         plt.scatter(x_tasks,y_tasks,color='g',marker="o",s=200,label="Targets")                    
-
-        x_goal=self.parameters.goal[0]
-        y_goal=self.parameters.goal[1]
-        plt.scatter(x_goal,y_goal,color='g',marker=">",s=250,label="Goal")
+        self.draw_goals(ax)
        
         plt.grid(which='minor',linestyle=":",color='k',lw=0.5)#,marker="D")
         if legend:

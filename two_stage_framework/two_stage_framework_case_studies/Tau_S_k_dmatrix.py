@@ -57,7 +57,12 @@ class Tau_S_k_dmatrix(DMatrix):
         mask_G_S=np.zeros((len(Tau_S_k_dmatrix.S),len(Tau_S_k_dmatrix.S)),dtype=bool)
         mask_G_S[G_mask,:]=True
         Tau_S_k_dmatrix.mask_G_S=mask_G_S
-        Tau_S_k_dmatrix.values_G_S=G_mask
+        # Each goal state is absorbing to itself.
+        values_G_S=np.zeros((len(Tau_S_k_dmatrix.S),len(Tau_S_k_dmatrix.S)))
+        goal_inds=np.where(G_mask)[0]
+        for g_ind in goal_inds:
+            values_G_S[g_ind,g_ind]=1
+        Tau_S_k_dmatrix.values_G_S=values_G_S[mask_G_S]
 
     def generate_Tau_S_k(self):
         self.p_H_k=p_H_k_matrix(self.k)

@@ -8,9 +8,20 @@ class S_set(Set):
         self.Tau_Q=path_planner.Tau_Q
         self.illegals=self.generate_illegals()
         self.s_H='s_H'
-        self.s_G=(set(self.Q.targets),self.Q.goal)
+        if self._is_goal_collection(self.Q.goal):
+            self.s_G=[(set(self.Q.targets),goal_cell) for goal_cell in self.Q.goal]
+        else:
+            self.s_G=(set(self.Q.targets),self.Q.goal)
         S=self.generate_S()
         super(S_set,self).__init__(S)
+
+    def _is_goal_collection(self,goal):
+        if isinstance(goal,(list,set)):
+            return len(goal)>0 and all(isinstance(e,tuple) and len(e)==2 for e in goal)
+        if isinstance(goal,tuple):
+            if len(goal)==2 and all(isinstance(e,(int,np.integer)) for e in goal):
+                return False
+        return False
 
     def generate_illegals(self):
         illegals=[]
@@ -38,5 +49,9 @@ class S_set(Set):
 
     def get_G_mask(self):
         G_inds=np.zeros(len(self),dtype=bool)
-        G_inds[self.index(self.s_G)]=True
+        if isinstance(self.s_G,list):
+            for s_G_i in self.s_G:
+                G_inds[self.index(s_G_i)]=True
+        else:
+            G_inds[self.index(self.s_G)]=True
         return G_inds
