@@ -220,13 +220,12 @@ example_name = "lab_case_study_2r_lowfire"
 parameters = Parameters(name=example_name)
 open_case_study = False
 
-gridworld, parameters.map = build_lab_obstacle_map(width=12, height=25)
+gridworld, parameters.map = build_lab_obstacle_map(width=16, height=32)
 
 target_world_points = [(-1.05, 2.15), (0.65, -1.55)]
 parameters.targets = world_points_to_free_cells(gridworld, parameters.map, target_world_points)
 parameters.task_ids = ["i", "ii"]
 
-# Start robots close to exits (entry/exit behavior).
 robot_world_points = [(0.65, 2.75), (-1.35, 1.15)]
 parameters.robot_positions = world_points_to_free_cells(gridworld, parameters.map, robot_world_points)
 parameters.robot_ids = ["1", "2"]
