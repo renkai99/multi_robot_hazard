@@ -146,6 +146,12 @@ class Drawer(object):
                 else:
                     x_t=path.domain[1][np.where(path.matrix[t,:])[0][0]]
                     x_list=x_list+[x_t]
+
+            # Robot can be stationary for the entire horizon.
+            if len(d_list)==0:
+                x0_r,y0_r=self.rotate_point(x_list[0])
+                plt.plot([x0_r],[y0_r],marker='o',color='b',linestyle='None',zorder=2)
+                continue
              
             shift=0.075+i*0.15
             
@@ -206,6 +212,12 @@ class Drawer(object):
                     else:
                         x_t=path.domain[1][np.where(path.matrix[t,:])[0][0]]
                         x_list=x_list+[x_t]
+
+                # Robot can be stationary for the entire horizon.
+                if len(d_list)==0:
+                    x0_r,y0_r=self.rotate_point(x_list[0])
+                    plt.plot([x0_r],[y0_r],marker='o',color='b',linestyle='None',zorder=2)
+                    continue
              
                 shift=0.075+(len(robots)-1-i)*0.15
             

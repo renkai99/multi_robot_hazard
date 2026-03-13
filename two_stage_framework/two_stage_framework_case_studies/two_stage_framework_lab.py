@@ -220,7 +220,7 @@ example_name = "lab_case_study_2r_lowfire"
 parameters = Parameters(name=example_name)
 open_case_study = False
 
-gridworld, parameters.map = build_lab_obstacle_map(width=16, height=32)
+gridworld, parameters.map = build_lab_obstacle_map(width=18, height=36)
 
 target_world_points = [(-1.05, 2.15), (0.65, -1.55)]
 parameters.targets = world_points_to_free_cells(gridworld, parameters.map, target_world_points)
@@ -234,7 +234,7 @@ parameters.robot_linestyles = [(0, ()), (0, (3, 3))]
 hazard_world_points = [(0.2, -2.4)]
 parameters.y_0 = [[c] for c in world_points_to_free_cells(gridworld, parameters.map, hazard_world_points)]
 parameters.hazard_ids = ["a"]
-parameters.p_f = [0.05]
+parameters.p_f = [0.2]
 
 parameters.goal = build_exit_cells(gridworld, parameters.map)
 
